@@ -1,0 +1,345 @@
+.zibi-name-wrap {
+	max-width: 1240px;
+}
+
+.zibi-name-header {
+	align-items: center;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	display: flex;
+	justify-content: space-between;
+	margin: 18px 0 18px;
+	padding: 22px 24px;
+}
+
+.zibi-name-header h1 {
+	color: #1d2327;
+	font-size: 24px;
+	line-height: 1.25;
+	margin: 0;
+}
+
+.zibi-name-header h1 span {
+	color: #2271b1;
+	font-weight: 600;
+}
+
+.zibi-name-desc {
+	color: #50575e;
+	font-size: 14px;
+	margin: 8px 0 0;
+	max-width: 740px;
+}
+
+.zibi-name-version {
+	background: #f0f6fc;
+	border: 1px solid #c5d9ed;
+	border-radius: 999px;
+	color: #135e96;
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1;
+	padding: 8px 12px;
+	white-space: nowrap;
+}
+
+.zibi-name-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-bottom: 22px;
+}
+
+.zibi-name-tabs .nav-tab {
+	margin-left: 0;
+	margin-bottom: -1px;
+	padding: 8px 14px;
+}
+
+.zibi-name-tab-panel {
+	display: none;
+}
+
+.zibi-name-tab-panel.is-active {
+	display: block;
+}
+
+.zibi-name-stats {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+	gap: 16px;
+	margin: 22px 0;
+}
+
+.zibi-name-stat {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 16px;
+}
+
+.zibi-name-stat strong {
+	color: #50575e;
+	display: block;
+	font-size: 13px;
+	margin-bottom: 8px;
+}
+
+.zibi-name-stat span {
+	color: #1d2327;
+	display: block;
+	font-size: 26px;
+	font-weight: 600;
+	line-height: 1.2;
+}
+
+.zibi-name-stat span.is-small {
+	font-size: 14px;
+	font-weight: 500;
+}
+
+.zibi-name-dashboard {
+	align-items: start;
+	display: grid;
+	gap: 22px;
+	grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+}
+
+.zibi-name-panel {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	margin: 24px 0;
+	max-width: 1040px;
+	padding: 28px;
+}
+
+.zibi-name-dashboard .zibi-name-panel,
+.zibi-name-wide-panel {
+	max-width: none;
+}
+
+.zibi-name-panel h2 {
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 17px;
+	margin: 16px 0 18px;
+	padding-bottom: 14px;
+}
+
+.zibi-name-panel h2:first-child {
+	margin-top: 0;
+}
+
+.zibi-name-panel .form-table {
+	margin-top: 14px;
+}
+
+.zibi-name-panel .form-table th {
+	padding: 18px 12px 18px 0;
+	width: 180px;
+}
+
+.zibi-name-panel .form-table td {
+	padding: 16px 10px;
+}
+
+.zibi-name-panel textarea.large-text {
+	max-width: 780px;
+}
+
+.zibi-name-panel input.regular-text,
+.zibi-name-panel textarea.large-text {
+	width: min(100%, 780px);
+}
+
+.zibi-name-panel .description {
+	margin-top: 8px;
+}
+
+.zibi-name-panel .submit {
+	margin: 18px 0 0;
+	padding: 0;
+}
+
+.zibi-name-inline {
+	display: inline-block;
+	margin-left: 18px;
+}
+
+.zibi-name-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 14px;
+	margin: 20px 0 24px;
+}
+
+.zibi-name-actions form {
+	margin: 0;
+}
+
+.zibi-name-ai-tools {
+	align-items: center;
+	border-top: 1px solid #f0f0f1;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	margin-top: 18px;
+	padding-top: 18px;
+}
+
+.zibi-name-ai-status {
+	color: #50575e;
+	font-weight: 600;
+	line-height: 1.5;
+}
+
+.zibi-name-ai-status.is-success {
+	color: #008a20;
+}
+
+.zibi-name-ai-status.is-error {
+	color: #b32d2e;
+}
+
+.zibi-name-ai-status.is-loading {
+	color: #135e96;
+}
+
+.zibi-name-model-list {
+	display: flex;
+	flex-basis: 100%;
+	flex-wrap: wrap;
+	gap: 8px;
+	max-height: 220px;
+	overflow: auto;
+	padding-top: 4px;
+}
+
+.zibi-name-model-choice {
+	max-width: 280px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.zibi-name-model-more {
+	align-self: center;
+	color: #646970;
+	font-size: 12px;
+}
+
+.zibi-name-panel > .zibi-name-actions + form,
+.zibi-name-panel > form + .zibi-name-actions,
+.zibi-name-panel > .zibi-name-actions + .zibi-name-table-scroll {
+	margin-top: 18px;
+}
+
+.zibi-name-checklist {
+	margin: 0;
+}
+
+.zibi-name-checklist li {
+	border-bottom: 1px solid #f0f0f1;
+	margin: 0;
+	padding: 10px 0;
+}
+
+.zibi-name-checklist li:last-child {
+	border-bottom: 0;
+	padding-bottom: 0;
+}
+
+.zibi-name-table {
+	min-width: 760px;
+}
+
+.zibi-name-table th,
+.zibi-name-table td {
+	padding-bottom: 12px;
+	padding-top: 12px;
+}
+
+.zibi-name-table-scroll {
+	margin-top: 20px;
+	overflow-x: auto;
+}
+
+.zibi-name-log-table td,
+.zibi-name-log-table th {
+	vertical-align: top;
+}
+
+.zibi-name-log-table td:first-child {
+	white-space: nowrap;
+	width: 150px;
+}
+
+.zibi-name-log-table td:nth-child(4) {
+	min-width: 260px;
+}
+
+.zibi-name-log-table td:nth-child(5) {
+	color: #50575e;
+	min-width: 220px;
+}
+
+.zibi-name-badge {
+	border-radius: 999px;
+	display: inline-block;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1;
+	padding: 5px 8px;
+	white-space: nowrap;
+}
+
+.zibi-name-badge.is-error {
+	background: #fcf0f1;
+	color: #b32d2e;
+}
+
+.zibi-name-badge.is-warning {
+	background: #fcf9e8;
+	color: #996800;
+}
+
+.zibi-name-badge.is-success {
+	background: #edfaef;
+	color: #008a20;
+}
+
+.zibi-name-badge.is-info {
+	background: #f0f6fc;
+	color: #135e96;
+}
+
+@media (max-width: 960px) {
+	.zibi-name-header {
+		align-items: flex-start;
+		display: block;
+	}
+
+	.zibi-name-version {
+		display: inline-block;
+		margin-top: 12px;
+	}
+
+	.zibi-name-dashboard {
+		grid-template-columns: 1fr;
+	}
+
+	.zibi-name-panel .form-table th {
+		width: auto;
+	}
+
+	.zibi-name-inline {
+		display: block;
+		margin: 8px 0 0;
+	}
+
+	.zibi-name-log-table td:first-child {
+		white-space: normal;
+		width: auto;
+	}
+}
