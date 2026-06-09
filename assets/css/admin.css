@@ -25,6 +25,18 @@
 	font-weight: 600;
 }
 
+.zibi-name-header-actions {
+	align-items: center;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	justify-content: flex-end;
+}
+
+.zibi-name-site-link {
+	white-space: nowrap;
+}
+
 .zibi-name-desc {
 	color: #50575e;
 	font-size: 14px;
@@ -142,6 +154,30 @@
 
 .zibi-name-panel .form-table td {
 	padding: 16px 10px;
+}
+
+.zibi-name-update-table {
+	max-width: 680px;
+}
+
+.zibi-name-release-notes {
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	color: #2c3338;
+	line-height: 1.7;
+	max-height: 180px;
+	max-width: 820px;
+	overflow: auto;
+	padding: 14px 16px;
+}
+
+.zibi-name-release-notes p {
+	margin: 0 0 10px;
+}
+
+.zibi-name-release-notes p:last-child {
+	margin-bottom: 0;
 }
 
 .zibi-name-panel textarea.large-text {
@@ -320,9 +356,13 @@
 		display: block;
 	}
 
+	.zibi-name-header-actions {
+		justify-content: flex-start;
+		margin-top: 12px;
+	}
+
 	.zibi-name-version {
 		display: inline-block;
-		margin-top: 12px;
 	}
 
 	.zibi-name-dashboard {

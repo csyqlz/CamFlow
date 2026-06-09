@@ -23,6 +23,7 @@ final class Zibi_Name {
 	const UPDATE_REPOSITORY = 'csyqlz/CamFlow';
 	const UPDATE_ASSET_NAME = 'CamFlow.zip';
 	const UPDATE_REPOSITORY_URL = 'https://github.com/csyqlz/CamFlow';
+	const OFFICIAL_SITE_URL = 'https://www.camwt.com';
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
@@ -45,13 +46,23 @@ final class Zibi_Name {
 		self::clear_scheduled_event();
 	}
 
+	public static function uninstall() {
+		self::clear_scheduled_event();
+		self::delete_generated_comments();
+		self::delete_generated_forum_posts();
+		self::delete_generated_users();
+		delete_option( self::OPTION_KEY );
+		delete_option( self::LOG_OPTION_KEY );
+		delete_transient( self::UPDATE_CACHE_KEY );
+	}
+
 	public static function defaults() {
 		return array(
 			'safety_confirmed'        => 0,
 			'enabled'                 => 0,
 			'daily_run_time'          => '02:30',
 			'user_pool_size'          => 200,
-			'user_login_prefix'       => 'camflow_',
+			'user_login_prefix'       => 'flow_',
 			'daily_comments'          => 10,
 			'daily_forum_posts'       => 2,
 			'post_pool_size'          => 80,
@@ -70,7 +81,7 @@ final class Zibi_Name {
 			'openrouter_model'        => 'openrouter/free',
 			'ai_model'                => 'gemini-2.5-flash-lite',
 			'ai_timeout'              => 20,
-			'ai_prompt'               => '请为 camwt.com 写一条自然、简短、像真实读者的中文评论。围绕标题和摘要展开，不要营销话术，不要夸张，不要表情，只返回正文。',
+			'ai_prompt'               => '请为当前 WP 系统写一条自然、简短、像真实读者的中文评论。围绕标题和摘要展开，不要营销话术，不要夸张，不要表情，只返回正文。',
 			'fallback_comments'       => "这篇内容看完之后感觉思路挺清楚，后面可以继续展开看看。\n这个角度挺实用，尤其是中间那部分说明比较直接。\n文章信息量不错，适合评论区自然互动。\n读起来比较顺，如果再补充几个案例会更完整。\n这个话题挺适合讨论，先收藏一下后面再看。",
 			'fallback_forum_titles'   => "大家最近都在折腾哪些实用工具？\n这个主题有没有更简单的实现方式？\n分享一个站内内容运营的小发现\n关于社区板块展示效果的几个问题\n有没有适合新手的配置建议？",
 			'fallback_forum_contents' => "这篇帖子用于补充社区板块的内容氛围，方便观察列表、详情页和评论区的排版。\n最近整理站点内容时发现一些细节，想看看社区帖子在不同用户下的展示效果。\n这个帖子用于模拟社区讨论场景，方便检查子比主题社区板块的活跃状态和交互布局。",
@@ -82,6 +93,9 @@ final class Zibi_Name {
 		$options = wp_parse_args( is_array( $options ) ? $options : array(), self::defaults() );
 		if ( 'gemini-3.1-flash-lite' === ( $options['ai_model'] ?? '' ) ) {
 			$options['ai_model'] = self::defaults()['ai_model'];
+		}
+		if ( 'camflow_' === ( $options['user_login_prefix'] ?? '' ) ) {
+			$options['user_login_prefix'] = self::defaults()['user_login_prefix'];
 		}
 
 		return $options;
@@ -136,7 +150,7 @@ final class Zibi_Name {
 	}
 
 	public static function register_menu() {
-		add_menu_page( '星流助手 CamFlow', '用户自动化', 'manage_options', self::MENU_SLUG, array( __CLASS__, 'render_page' ), 'dashicons-groups', 58 );
+		add_menu_page( 'CamFlow', '用户自动化', 'manage_options', self::MENU_SLUG, array( __CLASS__, 'render_page' ), 'dashicons-groups', 58 );
 	}
 
 	public static function register_settings() {
@@ -170,6 +184,7 @@ final class Zibi_Name {
 
 	public static function settings_link( $links ) {
 		array_unshift( $links, '<a href="' . esc_url( admin_url( 'admin.php?page=' . self::MENU_SLUG ) ) . '">设置</a>' );
+		$links[] = '<a href="' . esc_url( self::OFFICIAL_SITE_URL ) . '" target="_blank" rel="noopener">CAMWT官网</a>';
 		return $links;
 	}
 
@@ -192,10 +207,13 @@ final class Zibi_Name {
 		<div class="wrap zibi-name-wrap">
 			<div class="zibi-name-header">
 				<div>
-					<h1>星流助手 <span>CamFlow</span></h1>
-					<p class="zibi-name-desc">面向 camwt.com 的内容互动自动化工具：维护用户池、评论互动、社区发帖、AI 文案和运行日志。</p>
+					<h1>CamFlow</h1>
+					<p class="zibi-name-desc">面向 WP 系统的内容互动自动化工具：维护用户池、评论互动、社区发帖、AI 文案和运行日志。</p>
 				</div>
-				<div class="zibi-name-version">v<?php echo esc_html( ZIBI_NAME_VERSION ); ?></div>
+				<div class="zibi-name-header-actions">
+					<a class="button button-secondary zibi-name-site-link" href="<?php echo esc_url( self::OFFICIAL_SITE_URL ); ?>" target="_blank" rel="noopener">CAMWT官网</a>
+					<div class="zibi-name-version">v<?php echo esc_html( ZIBI_NAME_VERSION ); ?></div>
+				</div>
 			</div>
 			<nav class="nav-tab-wrapper zibi-name-tabs">
 				<?php foreach ( $tabs as $key => $label ) : ?>
@@ -319,7 +337,7 @@ final class Zibi_Name {
 			<?php self::hidden_option_fields( $options, array( 'user_pool_size', 'user_login_prefix' ) ); ?>
 			<h2>用户生成</h2>
 			<table class="form-table" role="presentation">
-				<tr><th scope="row">用户池数量</th><td><input type="number" min="1" max="3000" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[user_pool_size]" value="<?php echo esc_attr( $options['user_pool_size'] ); ?>"><p class="description">默认 200 个，昵称、签名和头像随机生成。</p></td></tr>
+				<tr><th scope="row">用户池数量</th><td><input type="number" min="1" max="3000" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[user_pool_size]" value="<?php echo esc_attr( $options['user_pool_size'] ); ?>"><p class="description">默认 200 个，昵称优先由 AI 批量生成，失败时使用本地抽象词库。</p></td></tr>
 				<tr><th scope="row">登录名前缀</th><td><input type="text" class="regular-text" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[user_login_prefix]" value="<?php echo esc_attr( $options['user_login_prefix'] ); ?>"></td></tr>
 			</table>
 			<?php submit_button( '保存用户生成设置' ); ?>
@@ -426,10 +444,7 @@ final class Zibi_Name {
 		?>
 		<div class="zibi-name-panel">
 			<h2>插件更新</h2>
-			<p class="description">公开版更新源已固定，普通用户不需要填写 GitHub 仓库、Token 或更新包地址。</p>
-			<table class="form-table" role="presentation">
-				<tr><th scope="row">更新源</th><td><a href="<?php echo esc_url( self::UPDATE_REPOSITORY_URL ); ?>" target="_blank" rel="noopener"><?php echo esc_html( self::UPDATE_REPOSITORY ); ?></a></td></tr>
-				<tr><th scope="row">发布规则</th><td>Release 标签使用 <code>v版本号</code>，附件固定为 <code><?php echo esc_html( self::UPDATE_ASSET_NAME ); ?></code>。</td></tr>
+			<table class="form-table zibi-name-update-table" role="presentation">
 				<tr><th scope="row">当前版本</th><td><code><?php echo esc_html( ZIBI_NAME_VERSION ); ?></code></td></tr>
 				<tr><th scope="row">最新版本</th><td><?php echo $latest_version ? '<code>' . esc_html( $latest_version ) . '</code>' : '尚未检查'; ?><?php echo $has_update ? ' <span class="zibi-name-badge is-warning">可更新</span>' : ''; ?></td></tr>
 				<?php if ( is_array( $cache ) && ! empty( $cache['published_at'] ) ) : ?><tr><th scope="row">发布时间</th><td><?php echo esc_html( $cache['published_at'] ); ?></td></tr><?php endif; ?>
@@ -441,7 +456,7 @@ final class Zibi_Name {
 			<?php if ( is_array( $cache ) ) : ?>
 				<?php if ( ! empty( $cache['html_url'] ) ) : ?><p><a class="button button-secondary" href="<?php echo esc_url( $cache['html_url'] ); ?>" target="_blank" rel="noopener">打开 Release 页面</a></p><?php endif; ?>
 				<?php if ( ! empty( $cache['download_url'] ) ) : ?><p><a class="button button-primary" href="<?php echo esc_url( $cache['download_url'] ); ?>" target="_blank" rel="noopener">下载更新包</a></p><?php endif; ?>
-				<?php if ( ! empty( $cache['body'] ) ) : ?><h3>更新说明</h3><p><?php echo esc_html( wp_trim_words( wp_strip_all_tags( $cache['body'] ), 120 ) ); ?></p><?php endif; ?>
+				<?php if ( ! empty( $cache['body'] ) ) : ?><h3>更新说明</h3><div class="zibi-name-release-notes"><?php echo wp_kses_post( wpautop( wp_trim_words( wp_strip_all_tags( $cache['body'] ), 260 ) ) ); ?></div><?php endif; ?>
 			<?php else : ?>
 				<p class="description">尚未检查更新。</p>
 			<?php endif; ?>
@@ -837,6 +852,7 @@ final class Zibi_Name {
 		$created = 0;
 		$skipped = 0;
 		$errors  = 0;
+		$nicknames = self::nickname_candidates( $options, $needed );
 		for ( $i = 0; $i < $needed; $i++ ) {
 			$suffix = strtolower( wp_generate_password( 8, false, false ) );
 			$login  = sanitize_user( $options['user_login_prefix'] . $suffix, true );
@@ -848,7 +864,7 @@ final class Zibi_Name {
 				}
 				continue;
 			}
-			$nickname = self::random_nickname();
+			$nickname = ! empty( $nicknames ) ? array_shift( $nicknames ) : self::random_nickname();
 			$user_id  = wp_insert_user(
 				array(
 					'user_login'   => $login,
@@ -1197,7 +1213,7 @@ final class Zibi_Name {
 			return '';
 		}
 
-		$prompt = ( 'comment' === $mode ? $options['ai_prompt'] : '请为 camwt.com 社区写一段自然的中文帖子正文，只返回正文。' ) . "\n\n标题：" . $title . "\n摘要：" . $excerpt;
+		$prompt = ( 'comment' === $mode ? $options['ai_prompt'] : '请为当前 WP 系统社区写一段自然的中文帖子正文，只返回正文。' ) . "\n\n标题：" . $title . "\n摘要：" . $excerpt;
 
 		if ( 'compatible' === $options['ai_provider'] ) {
 			return self::request_compatible_text( $prompt, $options, $mode, $meta );
@@ -1517,7 +1533,7 @@ final class Zibi_Name {
 							),
 						),
 						'temperature' => 0.8,
-						'max_tokens'  => 'test' === $mode ? 32 : ( 'comment' === $mode ? 160 : 280 ),
+						'max_tokens'  => 'test' === $mode ? 32 : ( 'nickname' === $mode ? 420 : ( 'comment' === $mode ? 160 : 280 ) ),
 					)
 				),
 			)
@@ -1709,13 +1725,13 @@ final class Zibi_Name {
 
 		$cache = get_transient( self::UPDATE_CACHE_KEY );
 		return (object) array(
-			'name'          => '星流助手 CamFlow',
+			'name'          => 'CamFlow',
 			'slug'          => self::PLUGIN_SLUG,
 			'version'       => is_array( $cache ) && ! empty( $cache['version'] ) ? $cache['version'] : ZIBI_NAME_VERSION,
-			'author'        => 'Codex',
-			'homepage'      => is_array( $cache ) && ! empty( $cache['html_url'] ) ? $cache['html_url'] : self::UPDATE_REPOSITORY_URL,
+			'author'        => 'CAMWT',
+			'homepage'      => self::OFFICIAL_SITE_URL,
 			'sections'      => array(
-				'description' => '面向 camwt.com 的内容互动自动化工具，支持用户池、评论、社区帖、AI 接入和运行日志。',
+				'description' => '面向 WP 系统的内容互动自动化工具，支持用户池、评论、社区帖、AI 接入和运行日志。',
 				'changelog'   => is_array( $cache ) && ! empty( $cache['body'] ) ? wp_kses_post( $cache['body'] ) : '暂无更新说明。',
 			),
 			'download_link' => is_array( $cache ) && ! empty( $cache['download_url'] ) ? $cache['download_url'] : '',
@@ -1837,8 +1853,92 @@ final class Zibi_Name {
 		return empty( $users ) ? null : $users[ array_rand( $users ) ];
 	}
 
+	private static function nickname_candidates( array $options, $count ) {
+		$count = absint( $count );
+		if ( $count <= 0 ) {
+			return array();
+		}
+
+		$names = self::ai_nickname_candidates( $options, $count );
+		$names = array_values( array_unique( array_filter( $names ) ) );
+		while ( count( $names ) < $count ) {
+			$name = self::random_nickname();
+			if ( ! in_array( $name, $names, true ) ) {
+				$names[] = $name;
+			}
+		}
+
+		return array_slice( $names, 0, $count );
+	}
+
+	private static function ai_nickname_candidates( array $options, $count ) {
+		if ( empty( $options['use_ai'] ) || empty( $options['ai_provider'] ) || 'none' === $options['ai_provider'] ) {
+			return array();
+		}
+
+		$count   = min( 200, max( 1, absint( $count ) ) );
+		$names   = array();
+		$batches = min( 4, (int) ceil( $count / 50 ) );
+		for ( $i = 0; $i < $batches && count( $names ) < $count; $i++ ) {
+			$batch_count = min( 50, $count - count( $names ) );
+			$prompt      = sprintf( '请生成 %d 个适合中文 WP 社区的自然昵称，每行一个。要求抽象、轻量、像真实用户；不要编号、不要解释、不要使用“机器人、AI、测试、用户、游客”等词；不要网址、邮箱或表情。', $batch_count );
+			$meta        = array();
+			$text        = '';
+
+			if ( 'compatible' === $options['ai_provider'] ) {
+				$text = self::request_compatible_text( $prompt, $options, 'nickname', $meta );
+			} elseif ( 'gemini' === $options['ai_provider'] ) {
+				$text = self::request_gemini_text( $prompt, $options, $meta );
+			} elseif ( 'openrouter' === $options['ai_provider'] ) {
+				$text = self::request_openrouter_text( $prompt, $options, 'nickname', $meta );
+			}
+
+			if ( '' === trim( (string) $text ) ) {
+				if ( ! empty( $meta['error'] ) ) {
+					self::add_activity_log( 'user', 'warning', 'AI 昵称生成失败，已使用本地抽象词库。', array( 'provider' => $meta['provider'] ?? '', 'model' => $meta['model'] ?? '', 'ai_error' => $meta['error'] ) );
+				}
+				break;
+			}
+
+			$names = array_merge( $names, self::parse_ai_nicknames( $text ) );
+		}
+
+		return array_slice( array_values( array_unique( array_filter( $names ) ) ), 0, $count );
+	}
+
+	private static function parse_ai_nicknames( $text ) {
+		$items = preg_split( '/\r\n|\r|\n|,|，|、/', (string) $text );
+		$names = array();
+		foreach ( $items as $item ) {
+			$name = self::clean_nickname( $item );
+			if ( $name ) {
+				$names[] = $name;
+			}
+		}
+
+		return $names;
+	}
+
+	private static function clean_nickname( $name ) {
+		$name = wp_strip_all_tags( (string) $name );
+		$name = preg_replace( '/^\s*[-*#\d一二三四五六七八九十]+[、.．)）:\-：\s]+/u', '', $name );
+		$name = trim( $name, " \t\n\r\0\x0B\"'“”‘’`·.-_" );
+		$name = preg_replace( '/(机器人|AI|测试|用户|游客)/iu', '', $name );
+		$name = preg_replace( '/[^\p{Han}A-Za-z0-9_\-\s]/u', '', $name );
+		$name = trim( preg_replace( '/\s+/u', '', $name ) );
+		if ( '' === $name ) {
+			return '';
+		}
+		if ( function_exists( 'mb_strlen' ) && mb_strlen( $name, 'UTF-8' ) > 14 ) {
+			$name = mb_substr( $name, 0, 14, 'UTF-8' );
+		}
+
+		return sanitize_text_field( $name );
+	}
+
 	private static function random_nickname() {
-		return self::random_item( array( '清风', '南城', '北巷', '星河', '山月', '云起', '小满', '拾光', '青禾', '墨白', '听雨', '晚舟', '初晴', '安然', '知夏', '半夏', '木槿', '浅川', '远山', '微澜' ) ) . self::random_item( array( '未眠', '慢行', '记事', '随笔', '有光', '不晚', '旧梦', '轻语', '向晚', '微凉', '归客', '知意', '听风', '望舒', '阿远', '小鹿', '青柠', '一页', '南笙', '北辰' ) ) . wp_rand( 10, 99 );
+		$name = self::random_item( array( '云隙', '折光', '回声', '浮标', '墨点', '星屿', '雨栈', '风页', '浅层', '弦外', '远屏', '轻舟', '蓝调', '灰阶', '竹影', '雾线', '慢频', '拾页', '半径', '溪午', '松间', '白昼', '纸航', '微尘', '北窗', '南页', '青栈', '余温', '月阶', '空集' ) ) . self::random_item( array( '随记', '小站', '片段', '注脚', '回廊', '低语', '坐标', '备忘', '片语', '札记', '一角', '浮层', '清单', '漫游', '笔记', '侧影', '停靠', '长风', '短章', '声纹', '余页', '散步', '微光', '留白', '航线', '折页', '行间' ) );
+		return wp_rand( 1, 100 ) <= 45 ? $name . wp_rand( 10, 99 ) : $name;
 	}
 
 	private static function random_signature() {
