@@ -1413,7 +1413,7 @@ final class Zibi_Name {
 
 	private static function request_gemini_text( $prompt, array $options, &$meta = null ) {
 		$model = ! empty( $options['ai_model'] ) ? $options['ai_model'] : self::defaults()['ai_model'];
-		$model = preg_replace( '/^models\//', '', $model );
+		$model = (string) preg_replace( '/^models\//', '', $model );
 		$meta  = array(
 			'source'   => 'ai',
 			'provider' => self::ai_provider_label( 'gemini' ),
@@ -1591,7 +1591,7 @@ final class Zibi_Name {
 			return $base_url;
 		}
 		if ( preg_match( '#/chat/completions$#i', $base_url ) ) {
-			return preg_replace( '#/chat/completions$#i', '/models', $base_url );
+			return (string) (string) preg_replace( '#/chat/completions$#i', '/models', $base_url );
 		}
 		if ( preg_match( '#/v1$#i', $base_url ) ) {
 			return $base_url . '/models';
@@ -1625,7 +1625,7 @@ final class Zibi_Name {
 
 	private static function clean_ai_text( $text ) {
 		$text = trim( wp_strip_all_tags( (string) $text ) );
-		$text = preg_replace( '/^["“”]+|["“”]+$/u', '', $text );
+		$text = (string) preg_replace( '/^["“”]+|["“”]+$/u', '', $text );
 		return trim( $text );
 	}
 
@@ -1671,7 +1671,7 @@ final class Zibi_Name {
 		}
 
 		$tag     = sanitize_text_field( $body['tag_name'] );
-		$version = preg_replace( '/^v/i', '', $tag );
+		$version = (string) preg_replace( '/^v/i', '', $tag );
 		set_transient(
 			self::UPDATE_CACHE_KEY,
 			array(
@@ -1921,11 +1921,11 @@ final class Zibi_Name {
 
 	private static function clean_nickname( $name ) {
 		$name = wp_strip_all_tags( (string) $name );
-		$name = preg_replace( '/^\s*[-*#\d一二三四五六七八九十]+[、.．)）:\-：\s]+/u', '', $name );
+		$name = (string) preg_replace( '/^\s*[-*#\d一二三四五六七八九十]+[、.．)）:\-：\s]+/u', '', $name );
 		$name = trim( $name, " \t\n\r\0\x0B\"'“”‘’`·.-_" );
-		$name = preg_replace( '/(机器人|AI|测试|用户|游客)/iu', '', $name );
-		$name = preg_replace( '/[^\p{Han}A-Za-z0-9_\-\s]/u', '', $name );
-		$name = trim( preg_replace( '/\s+/u', '', $name ) );
+		$name = (string) preg_replace( '/(机器人|AI|测试|用户|游客)/iu', '', $name );
+		$name = (string) preg_replace( '/[^\p{Han}A-Za-z0-9_\-\s]/u', '', $name );
+		$name = trim( (string) preg_replace( '/\s+/u', '', $name ) );
 		if ( '' === $name ) {
 			return '';
 		}
