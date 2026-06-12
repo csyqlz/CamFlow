@@ -3,7 +3,7 @@
  * Plugin Name: CamFlow
  * Plugin URI: https://www.camwt.com
  * Description: 面向 WP 系统的内容互动自动化工具，支持用户池、评论、社区帖、AI 接入和运行日志。
- * Version: 1.2.7
+ * Version: 1.2.8
  * Author: CAMWT
  * Author URI: https://www.camwt.com
  * Requires at least: 5.8
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ZIBI_NAME_VERSION', '1.2.7' );
+define( 'ZIBI_NAME_VERSION', '1.2.8' );
 define( 'ZIBI_NAME_FILE', __FILE__ );
 define( 'ZIBI_NAME_DIR', plugin_dir_path( __FILE__ ) );
 define( 'ZIBI_NAME_URL', plugin_dir_url( __FILE__ ) );

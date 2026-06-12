@@ -15,6 +15,7 @@ final class Zibi_Name {
 	const AI_PROVIDER_META_KEY = '_zibi_name_ai_provider';
 	const AI_MODEL_META_KEY    = '_zibi_name_ai_model';
 	const UPDATE_CACHE_KEY = 'zibi_name_update_cache';
+	const STATS_CACHE_KEY  = 'zibi_name_stats_cache';
 	const LOG_OPTION_KEY   = 'zibi_name_activity_logs';
 	const MENU_SLUG        = 'camflow';
 	const PLUGIN_SLUG      = 'camflow';
@@ -900,6 +901,9 @@ final class Zibi_Name {
 				)
 			);
 		}
+		if ( $created > 0 ) {
+			delete_transient( self::STATS_CACHE_KEY );
+		}
 		return $created;
 	}
 
@@ -1020,6 +1024,9 @@ final class Zibi_Name {
 				);
 			}
 		}
+		if ( $created > 0 ) {
+			delete_transient( self::STATS_CACHE_KEY );
+		}
 		return $created;
 	}
 
@@ -1135,6 +1142,9 @@ final class Zibi_Name {
 				}
 			}
 			$created++;
+		}
+		if ( $created > 0 ) {
+			delete_transient( self::STATS_CACHE_KEY );
 		}
 		return $created;
 	}
@@ -1743,21 +1753,42 @@ final class Zibi_Name {
 			return $source;
 		}
 
-		$source = trailingslashit( $source );
-		if ( self::PLUGIN_DIRNAME === basename( untrailingslashit( $source ) ) ) {
-			return $source;
-		}
-
 		global $wp_filesystem;
 		if ( empty( $wp_filesystem ) ) {
 			return $source;
 		}
 
-		$plugin_file = trailingslashit( $source ) . self::PLUGIN_FILENAME;
+		$source = trailingslashit( $source );
+
+		// 检查插件文件位置
+		$plugin_file = $source . self::PLUGIN_FILENAME;
 		if ( ! $wp_filesystem->exists( $plugin_file ) ) {
+			// 尝试在子目录中查找（GitHub zip 可能是 CamFlow-main/ 等）
+			$files = $wp_filesystem->dirlist( $source );
+			if ( is_array( $files ) ) {
+				foreach ( $files as $file ) {
+					if ( isset( $file['type'] ) && 'd' === $file['type'] ) {
+						$subdir = $source . trailingslashit( $file['name'] );
+						if ( $wp_filesystem->exists( $subdir . self::PLUGIN_FILENAME ) ) {
+							$source = $subdir;
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		// 再次检查
+		if ( ! $wp_filesystem->exists( $source . self::PLUGIN_FILENAME ) ) {
 			return $source;
 		}
 
+		// 如果目录名已经正确，直接返回
+		if ( self::PLUGIN_DIRNAME === basename( untrailingslashit( $source ) ) ) {
+			return $source;
+		}
+
+		// 重命名目录
 		$target = trailingslashit( dirname( untrailingslashit( $source ) ) ) . self::PLUGIN_DIRNAME . '/';
 		if ( $wp_filesystem->exists( $target ) ) {
 			$wp_filesystem->delete( $target, true );
@@ -1994,9 +2025,14 @@ final class Zibi_Name {
 	}
 
 	private static function stats() {
+		$cache = get_transient( self::STATS_CACHE_KEY );
+		if ( is_array( $cache ) ) {
+			return $cache;
+		}
+
 		$today = current_time( 'Y-m-d' );
 		$today_comments = get_comments( array( 'count' => true, 'status' => 'all', 'meta_key' => self::DATE_META_KEY, 'meta_value' => $today ) );
-		return array(
+		$stats = array(
 			'users'          => count( self::get_generated_users( 3000 ) ),
 			'post_comments'  => self::generated_comment_count_by_type( 'post' ),
 			'forum_comments' => self::generated_comment_count_by_type( 'forum_post' ),
@@ -2004,6 +2040,9 @@ final class Zibi_Name {
 			'today_total'    => absint( $today_comments ) + self::generated_forum_post_count( $today ),
 			'failures'       => self::activity_log_count( 'error' ),
 		);
+
+		set_transient( self::STATS_CACHE_KEY, $stats, 5 * MINUTE_IN_SECONDS );
+		return $stats;
 	}
 
 	private static function activity_logs( $limit = 120 ) {
@@ -2139,14 +2178,19 @@ final class Zibi_Name {
 	}
 
 	private static function generated_comment_count_by_type( $post_type ) {
-		$comments = get_comments( array( 'status' => 'all', 'meta_key' => self::COMMENT_META_KEY, 'number' => 0 ) );
-		$count = 0;
-		foreach ( $comments as $comment ) {
-			if ( $post_type === get_post_type( $comment->comment_post_ID ) ) {
-				$count++;
-			}
-		}
-		return $count;
+		global $wpdb;
+		$sql = $wpdb->prepare(
+			"SELECT COUNT(DISTINCT c.comment_ID)
+			FROM {$wpdb->comments} c
+			INNER JOIN {$wpdb->commentmeta} cm ON c.comment_ID = cm.comment_id
+			INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
+			WHERE p.post_type = %s
+			AND cm.meta_key = %s
+			AND cm.meta_value = '1'",
+			$post_type,
+			self::COMMENT_META_KEY
+		);
+		return absint( $wpdb->get_var( $sql ) );
 	}
 
 	private static function generated_forum_post_count( $date = '' ) {
@@ -2177,6 +2221,9 @@ final class Zibi_Name {
 				$deleted++;
 			}
 		}
+		if ( $deleted > 0 ) {
+			delete_transient( self::STATS_CACHE_KEY );
+		}
 		return $deleted;
 	}
 
@@ -2186,6 +2233,9 @@ final class Zibi_Name {
 			if ( get_post_meta( $id, self::POST_META_KEY, true ) && wp_delete_post( $id, true ) ) {
 				$deleted++;
 			}
+		}
+		if ( $deleted > 0 ) {
+			delete_transient( self::STATS_CACHE_KEY );
 		}
 		return $deleted;
 	}
