@@ -24,6 +24,11 @@ final class Zibi_Name {
 	const UPDATE_ASSET_NAME = 'CamFlow.zip';
 	const UPDATE_REPOSITORY_URL = 'https://github.com/csyqlz/CamFlow';
 	const OFFICIAL_SITE_URL = 'https://www.camwt.com';
+	const MAX_USER_POOL_SIZE = 3000;
+	const MAX_ACTIVITY_LOGS = 120;
+	const DEFAULT_USER_DISPLAY_LIMIT = 200;
+	const STATS_CACHE_KEY = 'zibi_name_stats_cache';
+	const STATS_CACHE_DURATION = 300;
 
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'register_menu' ) );
@@ -39,6 +44,23 @@ final class Zibi_Name {
 	}
 
 	public static function activate() {
+		global $wpdb;
+
+		$wpdb->query(
+			"CREATE INDEX IF NOT EXISTS idx_zibi_name_comment
+			ON {$wpdb->commentmeta} (meta_key(50), comment_id)"
+		);
+
+		$wpdb->query(
+			"CREATE INDEX IF NOT EXISTS idx_zibi_name_user
+			ON {$wpdb->usermeta} (meta_key(50), user_id)"
+		);
+
+		$wpdb->query(
+			"CREATE INDEX IF NOT EXISTS idx_zibi_name_post
+			ON {$wpdb->postmeta} (meta_key(50), post_id)"
+		);
+
 		self::reschedule_event( self::get_options() );
 	}
 
@@ -54,6 +76,7 @@ final class Zibi_Name {
 		delete_option( self::OPTION_KEY );
 		delete_option( self::LOG_OPTION_KEY );
 		delete_transient( self::UPDATE_CACHE_KEY );
+		delete_transient( self::STATS_CACHE_KEY );
 	}
 
 	public static function defaults() {
@@ -345,7 +368,7 @@ final class Zibi_Name {
 		<div class="zibi-name-panel">
 			<h2>用户池操作</h2>
 			<div class="zibi-name-actions"><?php self::action_button( '补齐 200 用户池', 'ensure_users', 'primary' ); ?></div>
-			<p class="description">当前已生成 <?php echo esc_html( count( self::get_generated_users( 3000 ) ) ); ?> 个用户。插件只会补齐缺口，不会重复创建已有用户。</p>
+			<p class="description">当前已生成 <?php echo esc_html( count( self::get_generated_users( self::MAX_USER_POOL_SIZE ) ) ); ?> 个用户。插件只会补齐缺口，不会重复创建已有用户。</p>
 		</div>
 		<?php
 	}
@@ -404,11 +427,11 @@ final class Zibi_Name {
 				<tr><th scope="row">启用 AI</th><td><label><input type="checkbox" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[use_ai]" value="1" <?php checked( $options['use_ai'], 1 ); ?>> 优先调用 AI，失败后使用备用模板</label></td></tr>
 				<tr><th scope="row">AI 服务</th><td><select name="<?php echo esc_attr( self::OPTION_KEY ); ?>[ai_provider]" data-zibi-ai-provider><option value="compatible" <?php selected( $options['ai_provider'], 'compatible' ); ?>>OpenAI 兼容接口（New API / sub2api / One API）</option><option value="openrouter" <?php selected( $options['ai_provider'], 'openrouter' ); ?>>OpenRouter 免费模型</option><option value="gemini" <?php selected( $options['ai_provider'], 'gemini' ); ?>>Google Gemini API</option><option value="none" <?php selected( $options['ai_provider'], 'none' ); ?>>不使用 AI</option></select></td></tr>
 				<tr class="zibi-name-ai-field is-compatible"><th scope="row">兼容接口地址</th><td><input type="url" class="regular-text" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[compatible_api_base]" value="<?php echo esc_attr( $options['compatible_api_base'] ); ?>" placeholder="https://api.example.com/v1"><p class="description">New API、sub2api 这类服务通常填写 <code>https://你的域名/v1</code>；也可以填写完整 <code>/v1/chat/completions</code> 地址。</p></td></tr>
-				<tr class="zibi-name-ai-field is-compatible"><th scope="row">兼容接口 Key</th><td><input type="password" class="regular-text" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[compatible_api_key]" value="<?php echo esc_attr( $options['compatible_api_key'] ); ?>" autocomplete="off"></td></tr>
+				<tr class="zibi-name-ai-field is-compatible"><th scope="row">兼容接口 Key</th><td><input type="password" class="regular-text" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[compatible_api_key]" value="<?php echo esc_attr( $options['compatible_api_key'] ); ?>" autocomplete="new-password"></td></tr>
 				<tr class="zibi-name-ai-field is-compatible"><th scope="row">兼容接口模型</th><td><input type="text" class="regular-text" list="camflow-model-options" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[compatible_model]" value="<?php echo esc_attr( $options['compatible_model'] ); ?>" placeholder="选择或输入模型 ID" data-zibi-model-input="compatible"><p class="description">模型名以你的 New API 或 sub2api 后台可用模型为准，可手动输入，也可以点击下方按钮读取。</p></td></tr>
-				<tr class="zibi-name-ai-field is-openrouter"><th scope="row">OpenRouter API Key</th><td><input type="password" class="regular-text" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[openrouter_api_key]" value="<?php echo esc_attr( $options['openrouter_api_key'] ); ?>" autocomplete="off"></td></tr>
+				<tr class="zibi-name-ai-field is-openrouter"><th scope="row">OpenRouter API Key</th><td><input type="password" class="regular-text" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[openrouter_api_key]" value="<?php echo esc_attr( $options['openrouter_api_key'] ); ?>" autocomplete="new-password"></td></tr>
 				<tr class="zibi-name-ai-field is-openrouter"><th scope="row">OpenRouter 模型</th><td><input type="text" class="regular-text" list="camflow-model-options" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[openrouter_model]" value="<?php echo esc_attr( $options['openrouter_model'] ); ?>" placeholder="例如填写一个 :free 模型 ID" data-zibi-model-input="openrouter"><p class="description">可填写 <code>openrouter/free</code> 或 OpenRouter 上带 <code>:free</code> 后缀的模型 ID。</p></td></tr>
-				<tr class="zibi-name-ai-field is-gemini"><th scope="row">Gemini API Key</th><td><input type="password" class="regular-text" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[gemini_api_key]" value="<?php echo esc_attr( $options['gemini_api_key'] ); ?>" autocomplete="off"><p class="description">在 Google AI Studio 创建 API Key 后填写。</p></td></tr>
+				<tr class="zibi-name-ai-field is-gemini"><th scope="row">Gemini API Key</th><td><input type="password" class="regular-text" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[gemini_api_key]" value="<?php echo esc_attr( $options['gemini_api_key'] ); ?>" autocomplete="new-password"><p class="description">在 Google AI Studio 创建 API Key 后填写。</p></td></tr>
 				<tr class="zibi-name-ai-field is-gemini"><th scope="row">Gemini 模型</th><td><input type="text" class="regular-text" list="camflow-model-options" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[ai_model]" value="<?php echo esc_attr( $options['ai_model'] ); ?>" data-zibi-model-input="gemini"><p class="description">默认：gemini-2.5-flash-lite，可改成 Google AI Studio 中可用的模型 ID。</p></td></tr>
 				<tr><th scope="row">超时时间</th><td><input type="number" min="3" max="60" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[ai_timeout]" value="<?php echo esc_attr( $options['ai_timeout'] ); ?>"> 秒</td></tr>
 				<tr><th scope="row">AI 提示词</th><td><textarea class="large-text" rows="4" name="<?php echo esc_attr( self::OPTION_KEY ); ?>[ai_prompt]"><?php echo esc_textarea( $options['ai_prompt'] ); ?></textarea></td></tr>
@@ -465,7 +488,7 @@ final class Zibi_Name {
 	}
 
 	private static function render_users() {
-		$users = self::get_generated_users( 200 );
+		$users = self::get_generated_users( self::DEFAULT_USER_DISPLAY_LIMIT );
 		?>
 		<div class="zibi-name-panel">
 			<h2>生成用户管理</h2>
@@ -481,7 +504,7 @@ final class Zibi_Name {
 	}
 
 	private static function render_comments() {
-		$comments = self::get_generated_comments( 200 );
+		$comments = self::get_generated_comments( self::DEFAULT_USER_DISPLAY_LIMIT );
 		?>
 		<div class="zibi-name-panel">
 			<h2>生成评论管理</h2>
@@ -497,7 +520,7 @@ final class Zibi_Name {
 	}
 
 	private static function render_forum_posts() {
-		$posts = self::get_generated_forum_posts( 200 );
+		$posts = self::get_generated_forum_posts( self::DEFAULT_USER_DISPLAY_LIMIT );
 		?>
 		<div class="zibi-name-panel">
 			<h2>生成社区帖管理</h2>
@@ -729,6 +752,7 @@ final class Zibi_Name {
 			self::notice( sprintf( '已删除 %d 个插件用户。', self::delete_generated_users() ) );
 		} elseif ( 'clear_logs' === $action ) {
 			update_option( self::LOG_OPTION_KEY, array(), false );
+			delete_transient( self::STATS_CACHE_KEY );
 			self::notice( '运行日志已清空。' );
 		} elseif ( 'check_update' === $action ) {
 			$result = self::check_github_update();
@@ -778,6 +802,10 @@ final class Zibi_Name {
 	private static function verify_ai_ajax_request() {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( array( 'message' => '你没有权限执行此操作。' ), 403 );
+		}
+
+		if ( ! wp_doing_ajax() ) {
+			wp_send_json_error( array( 'message' => '仅支持 AJAX 请求。' ), 400 );
 		}
 
 		check_ajax_referer( 'zibi_name_ai_tools', 'nonce' );
@@ -885,6 +913,7 @@ final class Zibi_Name {
 			update_user_meta( $user_id, 'custom_avatar', self::random_avatar_url( $user_id ) );
 			update_user_meta( $user_id, 'gender', self::random_item( array( '保密', '男', '女' ) ) );
 			$created++;
+			delete_transient( self::STATS_CACHE_KEY );
 		}
 		if ( $needed > 0 && $created < $needed ) {
 			self::add_activity_log(
@@ -977,34 +1006,7 @@ final class Zibi_Name {
 				add_comment_meta( $comment_id, self::COMMENT_META_KEY, 1, true );
 				add_comment_meta( $comment_id, self::DATE_META_KEY, current_time( 'Y-m-d' ), true );
 				self::store_comment_ai_meta( $comment_id, $content_meta );
-				if ( 'ai' === ( $content_meta['source'] ?? '' ) ) {
-					self::add_activity_log(
-						'comment',
-						'success',
-						'评论已发布：AI 模型生成回复。',
-						array(
-							'comment_id'     => $comment_id,
-							'target_post_id' => $post->ID,
-							'user_id'        => $user->ID,
-							'provider'       => $content_meta['provider'] ?? '',
-							'model'          => $content_meta['model'] ?? '',
-						)
-					);
-				} elseif ( ! empty( $content_meta['error'] ) ) {
-					self::add_activity_log(
-						'comment',
-						'warning',
-						'评论已发布：AI 调用失败，已使用备用模板。',
-						array(
-							'comment_id'     => $comment_id,
-							'target_post_id' => $post->ID,
-							'user_id'        => $user->ID,
-							'provider'       => $content_meta['provider'] ?? '',
-							'model'          => $content_meta['model'] ?? '',
-							'ai_error'       => $content_meta['error'] ?? '',
-						)
-					);
-				}
+				self::log_comment_creation( $comment_id, $post->ID, $user->ID, $content_meta );
 				$created++;
 			} else {
 				self::add_activity_log(
@@ -1093,32 +1095,7 @@ final class Zibi_Name {
 				continue;
 			}
 			self::store_post_ai_meta( $post_id, $content_meta );
-			if ( 'ai' === ( $content_meta['source'] ?? '' ) ) {
-				self::add_activity_log(
-					'forum',
-					'success',
-					'社区帖已发布：AI 模型生成正文。',
-					array(
-						'post_id'  => $post_id,
-						'user_id'  => $user->ID,
-						'provider' => $content_meta['provider'] ?? '',
-						'model'    => $content_meta['model'] ?? '',
-					)
-				);
-			} elseif ( ! empty( $content_meta['error'] ) ) {
-				self::add_activity_log(
-					'forum',
-					'warning',
-					'社区帖已发布：AI 调用失败，已使用备用模板。',
-					array(
-						'post_id'  => $post_id,
-						'user_id'  => $user->ID,
-						'provider' => $content_meta['provider'] ?? '',
-						'model'    => $content_meta['model'] ?? '',
-						'ai_error' => $content_meta['error'] ?? '',
-					)
-				);
-			}
+			self::log_forum_post_creation( $post_id, $user->ID, $content_meta );
 			if ( $plate ) {
 				update_post_meta( $post_id, 'plate_id', $plate );
 			}
@@ -1837,19 +1814,25 @@ final class Zibi_Name {
 	}
 
 	private static function get_generated_users( $limit = 3000 ) {
-		return get_users( array( 'number' => absint( $limit ), 'fields' => 'all', 'meta_key' => self::USER_META_KEY, 'meta_value' => 1, 'orderby' => 'ID', 'order' => 'DESC' ) );
+		$limit = absint( $limit );
+		$limit = $limit > 0 ? $limit : self::MAX_USER_POOL_SIZE;
+		return get_users( array( 'number' => $limit, 'fields' => 'all', 'meta_key' => self::USER_META_KEY, 'meta_value' => 1, 'orderby' => 'ID', 'order' => 'DESC' ) );
 	}
 
 	private static function get_generated_comments( $limit = 200 ) {
-		return get_comments( array( 'status' => 'all', 'number' => absint( $limit ), 'meta_key' => self::COMMENT_META_KEY, 'orderby' => 'comment_ID', 'order' => 'DESC' ) );
+		$limit = absint( $limit );
+		$limit = $limit > 0 ? $limit : self::DEFAULT_USER_DISPLAY_LIMIT;
+		return get_comments( array( 'status' => 'all', 'number' => $limit, 'meta_key' => self::COMMENT_META_KEY, 'orderby' => 'comment_ID', 'order' => 'DESC' ) );
 	}
 
 	private static function get_generated_forum_posts( $limit = 200 ) {
-		return get_posts( array( 'post_type' => 'forum_post', 'post_status' => 'any', 'posts_per_page' => absint( $limit ), 'meta_key' => self::POST_META_KEY, 'meta_value' => 1, 'orderby' => 'ID', 'order' => 'DESC' ) );
+		$limit = absint( $limit );
+		$limit = $limit > 0 ? $limit : self::DEFAULT_USER_DISPLAY_LIMIT;
+		return get_posts( array( 'post_type' => 'forum_post', 'post_status' => 'any', 'posts_per_page' => $limit, 'meta_key' => self::POST_META_KEY, 'meta_value' => 1, 'orderby' => 'ID', 'order' => 'DESC' ) );
 	}
 
 	private static function random_generated_user() {
-		$users = self::get_generated_users( 3000 );
+		$users = self::get_generated_users( self::MAX_USER_POOL_SIZE );
 		return empty( $users ) ? null : $users[ array_rand( $users ) ];
 	}
 
@@ -1921,16 +1904,16 @@ final class Zibi_Name {
 
 	private static function clean_nickname( $name ) {
 		$name = wp_strip_all_tags( (string) $name );
-		$name = preg_replace( '/^\s*[-*#\d一二三四五六七八九十]+[、.．)）:\-：\s]+/u', '', $name );
-		$name = trim( $name, " \t\n\r\0\x0B\"'“”‘’`·.-_" );
-		$name = preg_replace( '/(机器人|AI|测试|用户|游客)/iu', '', $name );
-		$name = preg_replace( '/[^\p{Han}A-Za-z0-9_\-\s]/u', '', $name );
-		$name = trim( preg_replace( '/\s+/u', '', $name ) );
-		if ( '' === $name ) {
-			return '';
+		$name = (string) preg_replace( ‘/^\s*[-*#\d一二三四五六七八九十]+[、.．)）:\-：\s]+/u’, ‘’, $name );
+		$name = trim( $name, “ \t\n\r\0\x0B\”’””’’`·.-_” );
+		$name = (string) preg_replace( ‘/(机器人|AI|测试|用户|游客)/iu’, ‘’, $name );
+		$name = (string) preg_replace( ‘/[^\p{Han}A-Za-z0-9_\-\s]/u’, ‘’, $name );
+		$name = trim( (string) preg_replace( ‘/\s+/u’, ‘’, $name ) );
+		if ( ‘’ === $name ) {
+			return ‘’;
 		}
-		if ( function_exists( 'mb_strlen' ) && mb_strlen( $name, 'UTF-8' ) > 14 ) {
-			$name = mb_substr( $name, 0, 14, 'UTF-8' );
+		if ( function_exists( ‘mb_strlen’ ) && mb_strlen( $name, ‘UTF-8’ ) > 14 ) {
+			$name = mb_substr( $name, 0, 14, ‘UTF-8’ );
 		}
 
 		return sanitize_text_field( $name );
@@ -1994,21 +1977,31 @@ final class Zibi_Name {
 	}
 
 	private static function stats() {
+		$cached = get_transient( self::STATS_CACHE_KEY );
+
+		if ( false !== $cached && is_array( $cached ) ) {
+			return $cached;
+		}
+
 		$today = current_time( 'Y-m-d' );
 		$today_comments = get_comments( array( 'count' => true, 'status' => 'all', 'meta_key' => self::DATE_META_KEY, 'meta_value' => $today ) );
-		return array(
-			'users'          => count( self::get_generated_users( 3000 ) ),
+		$stats = array(
+			'users'          => count( self::get_generated_users( self::MAX_USER_POOL_SIZE ) ),
 			'post_comments'  => self::generated_comment_count_by_type( 'post' ),
 			'forum_comments' => self::generated_comment_count_by_type( 'forum_post' ),
-			'forum_posts'    => count( self::get_generated_forum_posts( 10000 ) ),
+			'forum_posts'    => self::count_generated_forum_posts(),
 			'today_total'    => absint( $today_comments ) + self::generated_forum_post_count( $today ),
 			'failures'       => self::activity_log_count( 'error' ),
 		);
+
+		set_transient( self::STATS_CACHE_KEY, $stats, self::STATS_CACHE_DURATION );
+
+		return $stats;
 	}
 
 	private static function activity_logs( $limit = 120 ) {
 		$limit = absint( $limit );
-		$limit = $limit > 0 ? $limit : 120;
+		$limit = $limit > 0 ? $limit : self::MAX_ACTIVITY_LOGS;
 		$logs  = get_option( self::LOG_OPTION_KEY, array() );
 
 		if ( ! is_array( $logs ) ) {
@@ -2034,7 +2027,7 @@ final class Zibi_Name {
 	}
 
 	private static function add_activity_log( $type, $status, $message, array $context = array() ) {
-		$logs = self::activity_logs( 120 );
+		$logs = self::activity_logs( self::MAX_ACTIVITY_LOGS );
 		array_unshift(
 			$logs,
 			array(
@@ -2046,7 +2039,8 @@ final class Zibi_Name {
 			)
 		);
 
-		update_option( self::LOG_OPTION_KEY, array_slice( $logs, 0, 120 ), false );
+		update_option( self::LOG_OPTION_KEY, array_slice( $logs, 0, self::MAX_ACTIVITY_LOGS ), false );
+		delete_transient( self::STATS_CACHE_KEY );
 	}
 
 	private static function sanitize_log_context( array $context ) {
@@ -2138,24 +2132,121 @@ final class Zibi_Name {
 		return implode( '；', $parts );
 	}
 
-	private static function generated_comment_count_by_type( $post_type ) {
-		$comments = get_comments( array( 'status' => 'all', 'meta_key' => self::COMMENT_META_KEY, 'number' => 0 ) );
-		$count = 0;
-		foreach ( $comments as $comment ) {
-			if ( $post_type === get_post_type( $comment->comment_post_ID ) ) {
-				$count++;
-			}
+	private static function log_comment_creation( $comment_id, $post_id, $user_id, array $meta ) {
+		if ( 'ai' === ( $meta['source'] ?? '' ) ) {
+			self::add_activity_log(
+				'comment',
+				'success',
+				'评论已发布：AI 模型生成回复。',
+				array(
+					'comment_id'     => $comment_id,
+					'target_post_id' => $post_id,
+					'user_id'        => $user_id,
+					'provider'       => $meta['provider'] ?? '',
+					'model'          => $meta['model'] ?? '',
+				)
+			);
+		} elseif ( ! empty( $meta['error'] ) ) {
+			self::add_activity_log(
+				'comment',
+				'warning',
+				'评论已发布：AI 调用失败，已使用备用模板。',
+				array(
+					'comment_id'     => $comment_id,
+					'target_post_id' => $post_id,
+					'user_id'        => $user_id,
+					'provider'       => $meta['provider'] ?? '',
+					'model'          => $meta['model'] ?? '',
+					'ai_error'       => $meta['error'] ?? '',
+				)
+			);
 		}
-		return $count;
+	}
+
+	private static function log_forum_post_creation( $post_id, $user_id, array $meta ) {
+		if ( 'ai' === ( $meta['source'] ?? '' ) ) {
+			self::add_activity_log(
+				'forum',
+				'success',
+				'社区帖已发布：AI 模型生成正文。',
+				array(
+					'post_id'  => $post_id,
+					'user_id'  => $user_id,
+					'provider' => $meta['provider'] ?? '',
+					'model'    => $meta['model'] ?? '',
+				)
+			);
+		} elseif ( ! empty( $meta['error'] ) ) {
+			self::add_activity_log(
+				'forum',
+				'warning',
+				'社区帖已发布：AI 调用失败，已使用备用模板。',
+				array(
+					'post_id'  => $post_id,
+					'user_id'  => $user_id,
+					'provider' => $meta['provider'] ?? '',
+					'model'    => $meta['model'] ?? '',
+					'ai_error' => $meta['error'] ?? '',
+				)
+			);
+		}
+	}
+
+	private static function generated_comment_count_by_type( $post_type ) {
+		global $wpdb;
+		$sql = $wpdb->prepare(
+			"SELECT COUNT(DISTINCT c.comment_ID)
+			FROM {$wpdb->comments} c
+			INNER JOIN {$wpdb->commentmeta} cm ON c.comment_ID = cm.comment_id
+			INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
+			WHERE cm.meta_key = %s
+			AND cm.meta_value = '1'
+			AND p.post_type = %s",
+			self::COMMENT_META_KEY,
+			$post_type
+		);
+		return absint( $wpdb->get_var( $sql ) );
 	}
 
 	private static function generated_forum_post_count( $date = '' ) {
-		$args = array( 'post_type' => 'forum_post', 'post_status' => 'any', 'posts_per_page' => -1, 'fields' => 'ids', 'meta_key' => self::POST_META_KEY, 'meta_value' => 1 );
+		global $wpdb;
 		if ( $date ) {
-			$args['meta_query'] = array( array( 'key' => self::POST_META_KEY, 'value' => 1 ), array( 'key' => self::DATE_META_KEY, 'value' => $date ) );
-			unset( $args['meta_key'], $args['meta_value'] );
+			$sql = $wpdb->prepare(
+				"SELECT COUNT(DISTINCT p.ID)
+				FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->postmeta} pm1 ON p.ID = pm1.post_id AND pm1.meta_key = %s AND pm1.meta_value = '1'
+				INNER JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id AND pm2.meta_key = %s AND pm2.meta_value = %s
+				WHERE p.post_type = 'forum_post'",
+				self::POST_META_KEY,
+				self::DATE_META_KEY,
+				$date
+			);
+		} else {
+			$sql = $wpdb->prepare(
+				"SELECT COUNT(DISTINCT p.ID)
+				FROM {$wpdb->posts} p
+				INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+				WHERE p.post_type = 'forum_post'
+				AND pm.meta_key = %s
+				AND pm.meta_value = '1'",
+				self::POST_META_KEY
+			);
 		}
-		return count( get_posts( $args ) );
+		return absint( $wpdb->get_var( $sql ) );
+	}
+
+	private static function count_generated_forum_posts() {
+		global $wpdb;
+		$sql = $wpdb->prepare(
+			"SELECT COUNT(DISTINCT p.ID)
+			FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+			WHERE p.post_type = 'forum_post'
+			AND pm.meta_key = %s
+			AND pm.meta_value = '1'",
+			self::POST_META_KEY
+		);
+		return absint( $wpdb->get_var( $sql ) );
 	}
 
 	private static function delete_generated_comments() {
@@ -2177,6 +2268,9 @@ final class Zibi_Name {
 				$deleted++;
 			}
 		}
+		if ( $deleted > 0 ) {
+			delete_transient( self::STATS_CACHE_KEY );
+		}
 		return $deleted;
 	}
 
@@ -2186,6 +2280,9 @@ final class Zibi_Name {
 			if ( get_post_meta( $id, self::POST_META_KEY, true ) && wp_delete_post( $id, true ) ) {
 				$deleted++;
 			}
+		}
+		if ( $deleted > 0 ) {
+			delete_transient( self::STATS_CACHE_KEY );
 		}
 		return $deleted;
 	}
@@ -2200,6 +2297,9 @@ final class Zibi_Name {
 			if ( get_user_meta( $id, self::USER_META_KEY, true ) && wp_delete_user( $id ) ) {
 				$deleted++;
 			}
+		}
+		if ( $deleted > 0 ) {
+			delete_transient( self::STATS_CACHE_KEY );
 		}
 		return $deleted;
 	}
