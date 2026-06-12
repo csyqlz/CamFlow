@@ -274,5 +274,42 @@
 				});
 			});
 		});
+
+		// 加载进度提示（使用事件委托）
+		document.addEventListener('submit', function (event) {
+			var form = event.target;
+			if (form.tagName !== 'FORM' || form.method.toLowerCase() !== 'post') {
+				return;
+			}
+			var action = form.querySelector('[name="zibi_name_action"]');
+			if (!action || !action.value) {
+				return;
+			}
+			var actionValue = action.value;
+			var messages = {
+				'ensure_users': '正在补齐用户池，请稍候...',
+				'generate_comments': '正在生成评论，请稍候...',
+				'generate_forum_posts': '正在生成社区帖，请稍候...',
+				'delete_users': '正在删除用户，请稍候...',
+				'delete_comments': '正在删除评论，请稍候...',
+				'delete_forum_posts': '正在删除社区帖，请稍候...',
+				'bulk_delete_users': '正在批量删除用户，请稍候...',
+				'bulk_delete_comments': '正在批量删除评论，请稍候...',
+				'bulk_delete_forum_posts': '正在批量删除社区帖，请稍候...',
+				'manual_update': '正在下载并安装更新，请稍候...',
+				'run_daily_now': '正在执行计划任务，请稍候...',
+				'refresh_stats': '正在刷新统计数据，请稍候...'
+			};
+			if (messages[actionValue]) {
+				showLoadingOverlay(messages[actionValue]);
+			}
+		});
+
+		function showLoadingOverlay(message) {
+			var overlay = document.createElement('div');
+			overlay.className = 'zibi-name-loading-overlay';
+			overlay.innerHTML = '<div class="zibi-name-loading-box"><div class="zibi-name-spinner"></div><p>' + message + '</p></div>';
+			document.body.appendChild(overlay);
+		}
 	});
 })();

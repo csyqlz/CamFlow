@@ -15,7 +15,6 @@ final class Zibi_Name {
 	const AI_PROVIDER_META_KEY = '_zibi_name_ai_provider';
 	const AI_MODEL_META_KEY    = '_zibi_name_ai_model';
 	const UPDATE_CACHE_KEY = 'zibi_name_update_cache';
-	const STATS_CACHE_KEY  = 'zibi_name_stats_cache';
 	const LOG_OPTION_KEY   = 'zibi_name_activity_logs';
 	const MENU_SLUG        = 'camflow';
 	const PLUGIN_SLUG      = 'camflow';
@@ -293,7 +292,6 @@ final class Zibi_Name {
 					<?php self::action_button( '补齐 200 用户池', 'ensure_users', 'secondary' ); ?>
 					<?php self::action_button( '立即生成评论', 'generate_comments', 'primary' ); ?>
 					<?php self::action_button( '立即生成社区帖', 'generate_forum_posts', 'primary' ); ?>
-					<?php self::action_button( '刷新统计数据', 'refresh_stats', 'secondary' ); ?>
 				</div>
 				<p class="description">自动任务只有在“站点确认”和“每日自动运行”同时开启后才会执行。当前运行时间：<?php echo esc_html( $options['daily_run_time'] ); ?></p>
 			</div>
@@ -448,44 +446,22 @@ final class Zibi_Name {
 			<h2>插件更新</h2>
 			<table class="form-table zibi-name-update-table" role="presentation">
 				<tr><th scope="row">当前版本</th><td><code><?php echo esc_html( ZIBI_NAME_VERSION ); ?></code></td></tr>
-				<tr><th scope="row">最新版本</th><td><?php echo $latest_version ? '<code>' . esc_html( $latest_version ) . '</code>' : '尚未检查'; ?><?php echo $has_update ? ' <span class="zibi-name-badge is-warning">可更新</span>' : ( $latest_version ? ' <span class="zibi-name-badge is-success">已是最新</span>' : '' ); ?></td></tr>
+				<tr><th scope="row">最新版本</th><td><?php echo $latest_version ? '<code>' . esc_html( $latest_version ) . '</code>' : '尚未检查'; ?><?php echo $has_update ? ' <span class="zibi-name-badge is-warning">可更新</span>' : ''; ?></td></tr>
 				<?php if ( is_array( $cache ) && ! empty( $cache['published_at'] ) ) : ?><tr><th scope="row">发布时间</th><td><?php echo esc_html( $cache['published_at'] ); ?></td></tr><?php endif; ?>
 			</table>
 			<div class="zibi-name-actions">
 				<?php self::action_button( '检查 GitHub 最新版本', 'check_update', 'primary' ); ?>
-				<?php if ( $has_update ) : ?><?php self::action_button( '立即执行插件更新', 'manual_update', 'secondary', '确定从 GitHub Release 下载并安装更新吗？更新过程需要 30-60 秒，请勿关闭页面。建议先备份数据。' ); ?><?php endif; ?>
+				<?php self::action_button( '立即执行插件更新', 'manual_update', 'secondary', '确定从 GitHub Release 下载 CamFlow.zip 并更新插件吗？请先备份。' ); ?>
 			</div>
 			<?php if ( is_array( $cache ) ) : ?>
-				<div class="zibi-name-update-links">
-					<?php if ( ! empty( $cache['html_url'] ) ) : ?><a class="button" href="<?php echo esc_url( $cache['html_url'] ); ?>" target="_blank" rel="noopener">📄 查看 Release 页面</a><?php endif; ?>
-					<?php if ( ! empty( $cache['download_url'] ) ) : ?><a class="button" href="<?php echo esc_url( $cache['download_url'] ); ?>" target="_blank" rel="noopener">⬇️ 手动下载更新包</a><?php endif; ?>
-				</div>
-				<?php if ( ! empty( $cache['body'] ) ) : ?>
-					<h3>📋 更新说明</h3>
-					<div class="zibi-name-release-notes"><?php echo self::format_release_notes( $cache['body'] ); ?></div>
-				<?php endif; ?>
+				<?php if ( ! empty( $cache['html_url'] ) ) : ?><p><a class="button button-secondary" href="<?php echo esc_url( $cache['html_url'] ); ?>" target="_blank" rel="noopener">打开 Release 页面</a></p><?php endif; ?>
+				<?php if ( ! empty( $cache['download_url'] ) ) : ?><p><a class="button button-primary" href="<?php echo esc_url( $cache['download_url'] ); ?>" target="_blank" rel="noopener">下载更新包</a></p><?php endif; ?>
+				<?php if ( ! empty( $cache['body'] ) ) : ?><h3>更新说明</h3><div class="zibi-name-release-notes"><?php echo wp_kses_post( wpautop( wp_trim_words( wp_strip_all_tags( $cache['body'] ), 260 ) ) ); ?></div><?php endif; ?>
 			<?php else : ?>
-				<p class="description">点击"检查 GitHub 最新版本"按钮获取更新信息。</p>
+				<p class="description">尚未检查更新。</p>
 			<?php endif; ?>
 		</div>
 		<?php
-	}
-
-
-	private static function format_release_notes( $body ) {
-		if ( empty( $body ) ) {
-			return '';
-		}
-		
-		// 保留 markdown 格式并转换为 HTML
-		$body = wp_kses_post( wpautop( $body ) );
-		
-		// 限制显示前 500 个字
-		if ( mb_strlen( wp_strip_all_tags( $body ) ) > 500 ) {
-			$body = wp_trim_words( $body, 100, '...' );
-		}
-		
-		return $body;
 	}
 
 	private static function render_users() {
@@ -578,11 +554,11 @@ final class Zibi_Name {
 	private static function forum_posts_table( array $posts ) {
 		?>
 		<table class="widefat striped zibi-name-table">
-			<thead><tr><td class="check-column"><input type="checkbox" class="zibi-name-check-all"></td><th>ID</th><th>标题</th><th>作者</th><th>板块</th><th>评论数</th><th>AI 模型</th><th>发布时间</th></tr></thead>
+			<thead><tr><td class="check-column"><input type="checkbox" class="zibi-name-check-all"></td><th>ID</th><th>标题</th><th>作者</th><th>板块</th><th>评论数</th><th>发布时间</th></tr></thead>
 			<tbody>
-			<?php if ( empty( $posts ) ) : ?><tr><td colspan="8">暂无生成社区帖。</td></tr><?php endif; ?>
+			<?php if ( empty( $posts ) ) : ?><tr><td colspan="7">暂无生成社区帖。</td></tr><?php endif; ?>
 			<?php foreach ( $posts as $post ) : ?>
-				<tr><th class="check-column"><input type="checkbox" name="post_ids[]" value="<?php echo esc_attr( $post->ID ); ?>"></th><td><?php echo esc_html( $post->ID ); ?></td><td><?php echo esc_html( get_the_title( $post ) ); ?></td><td><?php echo esc_html( get_the_author_meta( 'display_name', $post->post_author ) ); ?></td><td><?php echo esc_html( get_the_title( get_post_meta( $post->ID, 'plate_id', true ) ) ); ?></td><td><?php echo esc_html( get_comments_number( $post->ID ) ); ?></td><td><?php echo esc_html( self::post_ai_model_label( $post->ID ) ); ?></td><td><?php echo esc_html( $post->post_date ); ?></td></tr>
+				<tr><th class="check-column"><input type="checkbox" name="post_ids[]" value="<?php echo esc_attr( $post->ID ); ?>"></th><td><?php echo esc_html( $post->ID ); ?></td><td><?php echo esc_html( get_the_title( $post ) ); ?></td><td><?php echo esc_html( get_the_author_meta( 'display_name', $post->post_author ) ); ?></td><td><?php echo esc_html( get_the_title( get_post_meta( $post->ID, 'plate_id', true ) ) ); ?></td><td><?php echo esc_html( get_comments_number( $post->ID ) ); ?></td><td><?php echo esc_html( $post->post_date ); ?></td></tr>
 			<?php endforeach; ?>
 			</tbody>
 		</table>
@@ -645,22 +621,6 @@ final class Zibi_Name {
 
 		return '-';
 	}
-
-	private static function post_ai_model_label( $post_id ) {
-		$source   = get_post_meta( $post_id, self::AI_SOURCE_META_KEY, true );
-		$provider = get_post_meta( $post_id, self::AI_PROVIDER_META_KEY, true );
-		$model    = get_post_meta( $post_id, self::AI_MODEL_META_KEY, true );
-
-		if ( 'template' === $source ) {
-			return '备用模板';
-		}
-		if ( $model ) {
-			return trim( ( $provider ? $provider . ' / ' : '' ) . $model );
-		}
-
-		return '-';
-	}
-
 
 	private static function hidden_generation_fields( array $options ) {
 		foreach ( array( 'safety_confirmed', 'enabled', 'target_post', 'target_forum_post', 'create_forum_posts' ) as $key ) {
@@ -770,9 +730,6 @@ final class Zibi_Name {
 		} elseif ( 'clear_logs' === $action ) {
 			update_option( self::LOG_OPTION_KEY, array(), false );
 			self::notice( '运行日志已清空。' );
-	} elseif ( 'refresh_stats' === $action ) {
-		delete_transient( self::STATS_CACHE_KEY );
-		self::notice( '统计数据已刷新。' );
 		} elseif ( 'check_update' === $action ) {
 			$result = self::check_github_update();
 			self::notice( $result['message'], empty( $result['ok'] ) ? 'error' : 'success' );
@@ -943,17 +900,6 @@ final class Zibi_Name {
 				)
 			);
 		}
-		if ( $created > 0 ) {
-			delete_transient( self::STATS_CACHE_KEY );
-			$log_msg = sprintf( '用户池已补齐，本次新增 %d 个用户', $created );
-			if ( ! empty( $options['use_ai'] ) && ! empty( $options['ai_provider'] ) && 'none' !== $options['ai_provider'] ) {
-				$log_msg .= '，昵称由 AI 批量生成。';
-				self::add_activity_log( 'user', 'success', $log_msg, array( 'created' => $created, 'provider' => self::ai_provider_label( $options['ai_provider'] ), 'model' => self::current_ai_model( $options ) ) );
-			} else {
-				$log_msg .= '。';
-				self::add_activity_log( 'user', 'success', $log_msg, array( 'created' => $created ) );
-			}
-		}
 		return $created;
 	}
 
@@ -1074,10 +1020,6 @@ final class Zibi_Name {
 				);
 			}
 		}
-		if ( $created > 0 ) {
-			delete_transient( self::STATS_CACHE_KEY );
-			self::add_activity_log( 'comment', 'success', sprintf( '评论生成完成，本次新增 %d 条评论。', $created ), array( 'created' => $created ) );
-		}
 		return $created;
 	}
 
@@ -1194,9 +1136,6 @@ final class Zibi_Name {
 			}
 			$created++;
 		}
-		if ( $created > 0 ) {
-			delete_transient( self::STATS_CACHE_KEY );
-		}
 		return $created;
 	}
 
@@ -1274,7 +1213,7 @@ final class Zibi_Name {
 			return '';
 		}
 
-		$prompt = ( 'comment' === $mode ? $options['ai_prompt'] : '请围绕下面的标题，写一篇自然、像真实用户发布的中文社区帖子正文。内容要实用、易懂，可以是经验分享、问题讨论或实用建议，100-200字，不要营销话术，不要表情，只返回正文。' ) . "\n\n标题：" . $title . ( $excerpt ? "\n摘要：" . $excerpt : '' );
+		$prompt = ( 'comment' === $mode ? $options['ai_prompt'] : '请为当前 WP 系统社区写一段自然的中文帖子正文，只返回正文。' ) . "\n\n标题：" . $title . "\n摘要：" . $excerpt;
 
 		if ( 'compatible' === $options['ai_provider'] ) {
 			return self::request_compatible_text( $prompt, $options, $mode, $meta );
@@ -1804,42 +1743,21 @@ final class Zibi_Name {
 			return $source;
 		}
 
+		$source = trailingslashit( $source );
+		if ( self::PLUGIN_DIRNAME === basename( untrailingslashit( $source ) ) ) {
+			return $source;
+		}
+
 		global $wp_filesystem;
 		if ( empty( $wp_filesystem ) ) {
 			return $source;
 		}
 
-		$source = trailingslashit( $source );
-
-		// 检查插件文件位置
-		$plugin_file = $source . self::PLUGIN_FILENAME;
+		$plugin_file = trailingslashit( $source ) . self::PLUGIN_FILENAME;
 		if ( ! $wp_filesystem->exists( $plugin_file ) ) {
-			// 尝试在子目录中查找（GitHub zip 可能是 CamFlow-main/ 等）
-			$files = $wp_filesystem->dirlist( $source );
-			if ( is_array( $files ) ) {
-				foreach ( $files as $file ) {
-					if ( isset( $file['type'] ) && 'd' === $file['type'] ) {
-						$subdir = $source . trailingslashit( $file['name'] );
-						if ( $wp_filesystem->exists( $subdir . self::PLUGIN_FILENAME ) ) {
-							$source = $subdir;
-							break;
-						}
-					}
-				}
-			}
-		}
-
-		// 再次检查
-		if ( ! $wp_filesystem->exists( $source . self::PLUGIN_FILENAME ) ) {
 			return $source;
 		}
 
-		// 如果目录名已经正确，直接返回
-		if ( self::PLUGIN_DIRNAME === basename( untrailingslashit( $source ) ) ) {
-			return $source;
-		}
-
-		// 重命名目录
 		$target = trailingslashit( dirname( untrailingslashit( $source ) ) ) . self::PLUGIN_DIRNAME . '/';
 		if ( $wp_filesystem->exists( $target ) ) {
 			$wp_filesystem->delete( $target, true );
@@ -2076,24 +1994,16 @@ final class Zibi_Name {
 	}
 
 	private static function stats() {
-		$cache = get_transient( self::STATS_CACHE_KEY );
-		if ( is_array( $cache ) ) {
-			return $cache;
-		}
-
 		$today = current_time( 'Y-m-d' );
 		$today_comments = get_comments( array( 'count' => true, 'status' => 'all', 'meta_key' => self::DATE_META_KEY, 'meta_value' => $today ) );
-		$stats = array(
-			'users'          => self::count_generated_users(),
+		return array(
+			'users'          => count( self::get_generated_users( 3000 ) ),
 			'post_comments'  => self::generated_comment_count_by_type( 'post' ),
 			'forum_comments' => self::generated_comment_count_by_type( 'forum_post' ),
-			'forum_posts'    => self::count_generated_forum_posts(),
+			'forum_posts'    => count( self::get_generated_forum_posts( 10000 ) ),
 			'today_total'    => absint( $today_comments ) + self::generated_forum_post_count( $today ),
 			'failures'       => self::activity_log_count( 'error' ),
 		);
-
-		set_transient( self::STATS_CACHE_KEY, $stats, 5 * MINUTE_IN_SECONDS );
-		return $stats;
 	}
 
 	private static function activity_logs( $limit = 120 ) {
@@ -2229,77 +2139,23 @@ final class Zibi_Name {
 	}
 
 	private static function generated_comment_count_by_type( $post_type ) {
-		global $wpdb;
-		$sql = $wpdb->prepare(
-			"SELECT COUNT(DISTINCT c.comment_ID)
-			FROM {$wpdb->comments} c
-			INNER JOIN {$wpdb->commentmeta} cm ON c.comment_ID = cm.comment_id
-			INNER JOIN {$wpdb->posts} p ON c.comment_post_ID = p.ID
-			WHERE p.post_type = %s
-			AND cm.meta_key = %s
-			AND cm.meta_value = '1'",
-			$post_type,
-			self::COMMENT_META_KEY
-		);
-		return absint( $wpdb->get_var( $sql ) );
+		$comments = get_comments( array( 'status' => 'all', 'meta_key' => self::COMMENT_META_KEY, 'number' => 0 ) );
+		$count = 0;
+		foreach ( $comments as $comment ) {
+			if ( $post_type === get_post_type( $comment->comment_post_ID ) ) {
+				$count++;
+			}
+		}
+		return $count;
 	}
 
 	private static function generated_forum_post_count( $date = '' ) {
-		global $wpdb;
+		$args = array( 'post_type' => 'forum_post', 'post_status' => 'any', 'posts_per_page' => -1, 'fields' => 'ids', 'meta_key' => self::POST_META_KEY, 'meta_value' => 1 );
 		if ( $date ) {
-			$sql = $wpdb->prepare(
-				"SELECT COUNT(DISTINCT p.ID)
-				FROM {$wpdb->posts} p
-				INNER JOIN {$wpdb->postmeta} pm1 ON p.ID = pm1.post_id
-				INNER JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id
-				WHERE p.post_type = 'forum_post'
-				AND pm1.meta_key = %s
-				AND pm1.meta_value = '1'
-				AND pm2.meta_key = %s
-				AND pm2.meta_value = %s",
-				self::POST_META_KEY,
-				self::DATE_META_KEY,
-				$date
-			);
-		} else {
-			$sql = $wpdb->prepare(
-				"SELECT COUNT(DISTINCT p.ID)
-				FROM {$wpdb->posts} p
-				INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-				WHERE p.post_type = 'forum_post'
-				AND pm.meta_key = %s
-				AND pm.meta_value = '1'",
-				self::POST_META_KEY
-			);
+			$args['meta_query'] = array( array( 'key' => self::POST_META_KEY, 'value' => 1 ), array( 'key' => self::DATE_META_KEY, 'value' => $date ) );
+			unset( $args['meta_key'], $args['meta_value'] );
 		}
-		return absint( $wpdb->get_var( $sql ) );
-	}
-
-	private static function count_generated_users() {
-		global $wpdb;
-		$sql = $wpdb->prepare(
-			"SELECT COUNT(DISTINCT u.ID)
-			FROM {$wpdb->users} u
-			INNER JOIN {$wpdb->usermeta} um ON u.ID = um.user_id
-			WHERE um.meta_key = %s
-			AND um.meta_value = '1'",
-			self::USER_META_KEY
-		);
-		return absint( $wpdb->get_var( $sql ) );
-	}
-
-	private static function count_generated_forum_posts() {
-		global $wpdb;
-		$sql = $wpdb->prepare(
-			"SELECT COUNT(DISTINCT p.ID)
-			FROM {$wpdb->posts} p
-			INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
-			WHERE p.post_type = 'forum_post'
-			AND pm.meta_key = %s
-			AND pm.meta_value = '1'",
-			self::POST_META_KEY
-		);
-		return absint( $wpdb->get_var( $sql ) );
+		return count( get_posts( $args ) );
 	}
 
 	private static function delete_generated_comments() {
@@ -2321,9 +2177,6 @@ final class Zibi_Name {
 				$deleted++;
 			}
 		}
-		if ( $deleted > 0 ) {
-			delete_transient( self::STATS_CACHE_KEY );
-		}
 		return $deleted;
 	}
 
@@ -2333,9 +2186,6 @@ final class Zibi_Name {
 			if ( get_post_meta( $id, self::POST_META_KEY, true ) && wp_delete_post( $id, true ) ) {
 				$deleted++;
 			}
-		}
-		if ( $deleted > 0 ) {
-			delete_transient( self::STATS_CACHE_KEY );
 		}
 		return $deleted;
 	}
